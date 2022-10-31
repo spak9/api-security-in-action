@@ -26,18 +26,23 @@ public class Main {
             "jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
 
-
         // Create our Controllers
         var spaceController = new SpaceController(database);
-
 
         // Prepare our routes
         post("/spaces", spaceController::createSpace);
 
-
         // after filters
         after((request, response) -> {
             response.type("application/json");
+        });
+
+        afterAfter((request, response) -> {
+            response.header("Server", "");
+
+            // Used to exemptlify XSS vuln.
+            response.header("X-XSS-Protection", "0");
+            response.header("Content-Type", "text/html");
         });
 
         internalServerError(new JSONObject().put("error", "internal server error").toString());
