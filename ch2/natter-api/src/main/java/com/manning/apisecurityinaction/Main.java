@@ -14,6 +14,7 @@ import static spark.Spark.*;
 public class Main {
 
     public static void main(String... args) throws Exception {
+        
         // 1. Create privileged connection with default user to create database/tables
         var datasource = JdbcConnectionPool.create(
             "jdbc:h2:mem:natter", "natter", "password");
