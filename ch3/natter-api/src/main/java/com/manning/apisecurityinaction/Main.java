@@ -1,7 +1,7 @@
 package com.manning.apisecurityinaction;
 
 import java.nio.file.*;
-
+import com.google.common.util.concurrent.*;
 import com.manning.apisecurityinaction.controller.*;
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
@@ -28,20 +28,32 @@ public class Main {
             "jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
 
+        /*
+            Route Mapping
+        */
+        var spaceController = new SpaceController(database);
+        var moderatorController = new ModeratorController(database);
+
+        /*
+            Rate Limiting requests (DoS Attacks)
+        */
+        var rateLimiter = RateLimiter.create(2.0d);
+
         // Before filters - check "POST" requests have correct Content-Type
-        before(((request, response) -> {
+        before((request, response) -> {
+
+            if (!rateLimiter.tryAcquire()) {
+                response.header("Retry-After", "2");
+                halt(429);
+            }
+            
             if (request.requestMethod().equals("POST") &&
             !"application/json".equals(request.contentType())) {
                 halt(415, new JSONObject().put(
                     "error", "Only application/json supported"
                 ).toString());
             }
-        }));
-
-        /*
-            SpaceController and routes
-        */
-        var spaceController = new SpaceController(database);
+        });
 
         post("/spaces", spaceController::createSpace);
 
@@ -49,11 +61,7 @@ public class Main {
         post("/spaces/:spaceId/messages", spaceController::postMessage);
         get("/spaces/:spaceId/messages/:msgId", spaceController::readMessage);
         get("/spaces/:spaceId/messages", spaceController::findMessages);
-
-        var moderatorController =
-            new ModeratorController(database);
-        delete("/spaces/:spaceId/messages/:msgId",
-            moderatorController::deletePost);
+        delete("/spaces/:spaceId/messages/:msgId",moderatorController::deletePost);
 
         // Finally filters - put on HTTP response headers
         afterAfter((request, response) -> {
