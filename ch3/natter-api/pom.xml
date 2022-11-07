@@ -39,9 +39,9 @@
       <version>1.7.30</version>
     </dependency>
     <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <version>29.0-jre</version>
+     <groupId>com.google.guava</groupId>
+     <artifactId>guava</artifactId>
+     <version>29.0-jre</version>
     </dependency>
     <dependency>
       <groupId>com.lambdaworks</groupId>
