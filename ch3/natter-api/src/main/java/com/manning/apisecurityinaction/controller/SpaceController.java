@@ -43,6 +43,12 @@ public class SpaceController {
 			throw new IllegalArgumentException("invalid username: " + owner);
 		}
 
+		// verify authentication
+		var subject = request.attribute("subject");
+		if (!owner.equals(subject)) {
+			throw new IllegalArgumentException("owner must match authenticated user");
+		}
+
 		return database.withTransaction(tx -> {
 			var spaceId = database.findUniqueLong("SELECT NEXT VALUE FOR space_id_seq");
 
@@ -79,6 +85,12 @@ public class SpaceController {
 		var user = json.getString("author");
 		if (!user.matches("[a-zA-Z][a-zA-Z0-9]{0,29}")) {
 			throw new IllegalArgumentException("invalid username");
+		}
+
+		// verify authentication
+		var subject = request.attribute("subject");
+		if (!user.equals(subject)) {
+			throw new IllegalArgumentException("owner must match authenticated user");
 		}
 
 		var message = json.getString("message");

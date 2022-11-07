@@ -28,6 +28,10 @@ public class Main {
             "jdbc:h2:mem:natter", "natter_api_user", "password");
         database = Database.forDataSource(datasource);
 
+        var spaceController = new SpaceController(database);
+        var moderatorController = new ModeratorController(database);
+        var userController = new UserController(database);
+
         // Before filters - check "POST" requests have correct Content-Type
         before(((request, response) -> {
             if (request.requestMethod().equals("POST") &&
@@ -38,11 +42,12 @@ public class Main {
             }
         }));
 
-        /*
-            SpaceController and routes
-        */
-        var spaceController = new SpaceController(database);
+        // authenticate users on every HTTP request
+        before(userController::authenticate);
 
+        /*
+            SpaceController routes
+        */
         post("/spaces", spaceController::createSpace);
 
         // Additional REST endpoints not covered in the book:
@@ -50,10 +55,17 @@ public class Main {
         get("/spaces/:spaceId/messages/:msgId", spaceController::readMessage);
         get("/spaces/:spaceId/messages", spaceController::findMessages);
 
-        var moderatorController =
-            new ModeratorController(database);
-        delete("/spaces/:spaceId/messages/:msgId",
-            moderatorController::deletePost);
+
+        /*
+            ModeratorController routes
+        */
+        delete("/spaces/:spaceId/messages/:msgId", moderatorController::deletePost);
+
+        /*
+            UserController routes
+        */
+        post("/users", userController::registerUser);
+
 
         // Finally filters - put on HTTP response headers
         afterAfter((request, response) -> {
