@@ -15,6 +15,9 @@ public class Main {
 
     public static void main(String... args) throws Exception {
 
+        // secure via HTTPS
+        secure("localhost.p12", "changeit", null, null);
+
         // Connect to our database source
         var datasource = JdbcConnectionPool.create(
             "jdbc:h2:mem:natter", "natter", "password");
