@@ -1,4 +1,5 @@
-/Users/stevenpak/Desktop/code/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/SpaceController.java
-/Users/stevenpak/Desktop/code/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/ModeratorController.java
-/Users/stevenpak/Desktop/code/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/Main.java
-/Users/stevenpak/Desktop/code/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/UserController.java
+/home/steven/Desktop/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/UserController.java
+/home/steven/Desktop/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/Main.java
+/home/steven/Desktop/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/SpaceController.java
+/home/steven/Desktop/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/ModeratorController.java
+/home/steven/Desktop/api-security-in-action/ch3/natter-api/src/main/java/com/manning/apisecurityinaction/controller/AuditController.java

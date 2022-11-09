@@ -1,42 +1,43 @@
 package com.manning.apisecurityinaction;
 
+import static spark.Spark.*;
+
 import java.nio.file.*;
 
-import com.manning.apisecurityinaction.controller.*;
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
 import org.h2.jdbcx.JdbcConnectionPool;
 import org.json.*;
-import spark.*;
 
-import static spark.Spark.*;
+import com.google.common.util.concurrent.RateLimiter;
+import com.manning.apisecurityinaction.controller.*;
+
+import spark.*;
 
 public class Main {
 
     public static void main(String... args) throws Exception {
-
-        // secure via HTTPS
         secure("localhost.p12", "changeit", null, null);
-
-        // Connect to our database source
         var datasource = JdbcConnectionPool.create(
             "jdbc:h2:mem:natter", "natter", "password");
         var database = Database.forDataSource(datasource);
-
-        // Create our SQL tables from "schema.sql"
         createTables(database);
-
-        // After creation of tables, change user priv. so that only basic queries work
         datasource = JdbcConnectionPool.create(
             "jdbc:h2:mem:natter", "natter_api_user", "password");
-        database = Database.forDataSource(datasource);
 
+        database = Database.forDataSource(datasource);
         var spaceController = new SpaceController(database);
-        var moderatorController = new ModeratorController(database);
         var userController = new UserController(database);
         var auditController = new AuditController(database);
 
-        // Before filters - check "POST" requests have correct Content-Type
+        var rateLimiter = RateLimiter.create(2.0d);
+
+        before((request, response) -> {
+            if (!rateLimiter.tryAcquire()) {
+                halt(429);
+            }
+        });
+
         before(((request, response) -> {
             if (request.requestMethod().equals("POST") &&
             !"application/json".equals(request.contentType())) {
@@ -46,41 +47,6 @@ public class Main {
             }
         }));
 
-        // authenticate users on every HTTP request
-        before(userController::authenticate);
-
-        // audit log requests
-        before(auditController::auditRequestStart);
-        afterAfter(auditController::auditRequestEnd);
-
-        /*
-            SpaceController routes
-        */
-        post("/spaces", spaceController::createSpace);
-
-        // Additional REST endpoints not covered in the book:
-        post("/spaces/:spaceId/messages", spaceController::postMessage);
-        get("/spaces/:spaceId/messages/:msgId", spaceController::readMessage);
-        get("/spaces/:spaceId/messages", spaceController::findMessages);
-
-
-        /*
-            ModeratorController routes
-        */
-        delete("/spaces/:spaceId/messages/:msgId", moderatorController::deletePost);
-
-        /*
-            UserController routes
-        */
-        post("/users", userController::registerUser);
-
-        /*
-            AuditController routes
-        */
-        get("/logs", auditController::readAuditLog);
-
-
-        // Finally filters - put on HTTP response headers
         afterAfter((request, response) -> {
             response.type("application/json;charset=utf-8");
             response.header("X-Content-Type-Options", "nosniff");
@@ -91,6 +57,44 @@ public class Main {
                     "default-src 'none'; frame-ancestors 'none'; sandbox");
             response.header("Server", "");
         });
+
+        before(userController::authenticate);
+
+        before(auditController::auditRequestStart);
+        afterAfter(auditController::auditRequestEnd);
+
+        before("/spaces", userController::requireAuthentication);
+        post("/spaces", spaceController::createSpace);
+
+        // Additional REST endpoints not covered in the book:
+
+        before("/spaces/:spaceId/messages",
+                userController.requirePermission("POST", "w"));
+        post("/spaces/:spaceId/messages", spaceController::postMessage);
+
+        before("/spaces/:spaceId/messages/*",
+                userController.requirePermission("GET", "r"));
+        get("/spaces/:spaceId/messages/:msgId",
+            spaceController::readMessage);
+
+        before("/spaces/:spaceId/messages",
+                userController.requirePermission("GET", "r"));
+        get("/spaces/:spaceId/messages", spaceController::findMessages);
+
+        before("/spaces/:spaceId/members",
+                userController.requirePermission("POST", "rwd"));
+        post("/spaces/:spaceId/members", spaceController::addMember);
+
+        var moderatorController =
+            new ModeratorController(database);
+
+        before("/spaces/:spaceId/messages/*",
+                userController.requirePermission("DELETE", "d"));
+        delete("/spaces/:spaceId/messages/:msgId",
+            moderatorController::deletePost);
+
+        get("/logs", auditController::readAuditLog);
+        post("/users", userController::registerUser);
 
         internalServerError(new JSONObject()
             .put("error", "internal server error").toString());
