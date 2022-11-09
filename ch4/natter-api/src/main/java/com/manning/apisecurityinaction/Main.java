@@ -1,22 +1,22 @@
 package com.manning.apisecurityinaction;
 
-import static spark.Spark.*;
-
-import java.nio.file.*;
-
+import com.google.common.util.concurrent.RateLimiter;
+import com.manning.apisecurityinaction.controller.*;
+import com.manning.apisecurityinaction.token.*;
 import org.dalesbred.Database;
 import org.dalesbred.result.EmptyResultException;
 import org.h2.jdbcx.JdbcConnectionPool;
 import org.json.*;
-
-import com.google.common.util.concurrent.RateLimiter;
-import com.manning.apisecurityinaction.controller.*;
-
 import spark.*;
+
+import java.nio.file.*;
+
+import static spark.Spark.*;
 
 public class Main {
 
     public static void main(String... args) throws Exception {
+        Spark.staticFiles.location("/public");
         secure("localhost.p12", "changeit", null, null);
         var datasource = JdbcConnectionPool.create(
             "jdbc:h2:mem:natter", "natter", "password");
@@ -58,10 +58,18 @@ public class Main {
             response.header("Server", "");
         });
 
+        TokenStore tokenStore = new CookieTokenStore();
+        var tokenController = new TokenController(tokenStore);
+
         before(userController::authenticate);
+        before(tokenController::validateToken);
 
         before(auditController::auditRequestStart);
         afterAfter(auditController::auditRequestEnd);
+
+        before("/sessions", userController::requireAuthentication);
+        post("/sessions", tokenController::login);
+        delete("/sessions", tokenController::logout);
 
         before("/spaces", userController::requireAuthentication);
         post("/spaces", spaceController::createSpace);
